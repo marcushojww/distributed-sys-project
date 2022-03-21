@@ -40,9 +40,9 @@ type RingServer struct {
 const NUM_NODES = 3
 
 var Items []Item
-var Items1 []Item
-var Items2 []Item
-var Items3 []Item
+var Cart1 []Item
+var Cart2 []Item
+var Cart3 []Item
 
 func createNodeServer(name string, port int) *http.Server {
 
@@ -54,38 +54,50 @@ func createNodeServer(name string, port int) *http.Server {
 		fmt.Fprint(res, "Hello: "+name)
 	})
 
-	// getting all items
+	// GET all items
 	myRouter.HandleFunc("/items", func(res http.ResponseWriter, req *http.Request) {
-		if port == 9001 {
-			json.NewEncoder(res).Encode(Items1)
-		} else if port == 9002 {
-			json.NewEncoder(res).Encode(Items2)
-		} else if port == 9003 {
-			json.NewEncoder(res).Encode(Items3)
-		}
 
+		res.Header().Set("Access-Control-Allow-Origin", "*")
+		res.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		json.NewEncoder(res).Encode(Items)
 	})
 
-	// getting specific item
+	// GET cart depending on which node
+	myRouter.HandleFunc("/cart", func(res http.ResponseWriter, req *http.Request) {
+
+		res.Header().Set("Access-Control-Allow-Origin", "*")
+		res.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if port == 9001 {
+			json.NewEncoder(res).Encode(Cart1)
+		} else if port == 9002 {
+			json.NewEncoder(res).Encode(Cart2)
+		} else if port == 9003 {
+			json.NewEncoder(res).Encode(Cart3)
+		}
+	})
+
+	// GET specific item
 	myRouter.HandleFunc("/items/{id}", func(w http.ResponseWriter, req *http.Request) {
 		vars := mux.Vars(req)
 		key := vars["id"]
 		fmt.Println(key)
 
 		if port == 9001 {
-			for _, item := range Items1 {
+			for _, item := range Cart1 {
 				if item.ID == key {
 					json.NewEncoder(w).Encode(item)
 				}
 			}
 		} else if port == 9002 {
-			for _, item := range Items2 {
+			for _, item := range Cart2 {
 				if item.ID == key {
 					json.NewEncoder(w).Encode(item)
 				}
 			}
 		} else if port == 9003 {
-			for _, item := range Items3 {
+			for _, item := range Cart3 {
 				if item.ID == key {
 					json.NewEncoder(w).Encode(item)
 				}
@@ -94,8 +106,11 @@ func createNodeServer(name string, port int) *http.Server {
 
 	})
 
-	// Create new item
+	// POST new item
 	myRouter.HandleFunc("/addToCart", func(w http.ResponseWriter, r *http.Request) {
+		// Enable CORS
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		// get the body of our POST request
 		// unmarshal this into a new Article struct
 		// append this to our Articles array.
@@ -105,15 +120,15 @@ func createNodeServer(name string, port int) *http.Server {
 		// update our global Articles array to include
 		// our new Article
 		if port == 9001 {
-			Items1 = append(Items1, item)
+			Cart1 = append(Cart1, item)
 		} else if port == 9002 {
-			Items2 = append(Items2, item)
+			Cart2 = append(Cart2, item)
 		} else if port == 9003 {
-			Items3 = append(Items3, item)
+			Cart3 = append(Cart3, item)
 		}
 
 		json.NewEncoder(w).Encode(item)
-	}).Methods("POST")
+	}).Methods("POST", "OPTIONS")
 
 	// create new server
 	server := http.Server{
@@ -221,23 +236,11 @@ func main() {
 		{ID: "3", Name: "Teddy Bear", Desc: "Plushy toy", Price: "$10.00"},
 	}
 
-	Items1 = []Item{
-		{ID: "1", Name: "Comb", Desc: "Make your hair look neat with this", Price: "$1.00"},
-		{ID: "2", Name: "Pokka Green Tea", Desc: "Jasmine green tea", Price: "$2.00"},
-		{ID: "3", Name: "Teddy Bear", Desc: "Plushy toy", Price: "$10.00"},
-	}
+	Cart1 = []Item{}
 
-	Items2 = []Item{
-		{ID: "1", Name: "Comb", Desc: "Make your hair look neat with this", Price: "$1.00"},
-		{ID: "2", Name: "Pokka Green Tea", Desc: "Jasmine green tea", Price: "$2.00"},
-		{ID: "3", Name: "Teddy Bear", Desc: "Plushy toy", Price: "$10.00"},
-	}
+	Cart2 = []Item{}
 
-	Items3 = []Item{
-		{ID: "1", Name: "Comb", Desc: "Make your hair look neat with this", Price: "$1.00"},
-		{ID: "2", Name: "Pokka Green Tea", Desc: "Jasmine green tea", Price: "$2.00"},
-		{ID: "3", Name: "Teddy Bear", Desc: "Plushy toy", Price: "$10.00"},
-	}
+	Cart3 = []Item{}
 	// create a WaitGroup
 	wg := new(sync.WaitGroup)
 
@@ -257,33 +260,6 @@ func main() {
 		fmt.Println("Server", n.id, "started on port", n.port, ". HTTP Server:", n.httpServer)
 		go n.httpServer.ListenAndServe()
 	}
-	go ringServer.httpServer.ListenAndServe()
-	// // goroutine to launch a server on port 9000
-	// go func() {
-	//     server := createServer( "Node 1", 9001 )
-	// 	n := Node{ 1, server, 9001}
-	// 	fmt.Println("Server", n.id, " started on port ", n.port,". HTTP Server: ", n.httpServer)
-	//     fmt.Println( server.ListenAndServe() )
-	//     wg.Done()
-	// }()
-
-	// // // goroutine to launch a server on port 9001
-	// go func() {
-	//     server := createServer( "Node 2", 9002 )
-	// 	n := Node{ 2, server, 9002}
-	// 	fmt.Println("Server", n.id, " started on port ", n.port,". HTTP Server: ", n.httpServer)
-	//     fmt.Println( server.ListenAndServe() )
-	//     wg.Done()
-	// }()
-
-	//  // // goroutine to launch a server on port 9002
-	//  go func() {
-	//     server := createServer( "Node 3", 9003 )
-	// 	n := Node{ 3, server, 9003}
-	// 	fmt.Println("Server", n.id, " started on port ", n.port,". HTTP Server: ", n.httpServer)
-	//     fmt.Println( server.ListenAndServe() )
-	//     wg.Done()
-	// }()
 
 	// wait until WaitGroup is done
 	wg.Wait()
