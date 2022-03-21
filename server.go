@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strconv"
 	"sync"
@@ -31,29 +33,18 @@ type Node struct {
 }
 
 type RingServer struct {
-	nodeArray []Node
-	port      int
+	nodeArray  []Node
+	httpServer *http.Server
 }
 
 const NUM_NODES = 3
 
+var Items []Item
 var Items1 []Item
 var Items2 []Item
 var Items3 []Item
 
 func createNodeServer(name string, port int) *http.Server {
-
-	// // create `ServerMux`
-	// mux := http.NewServeMux()
-
-	// // create a default route handler
-	// mux.HandleFunc( "/", func( res http.ResponseWriter, req *http.Request ) {
-	//     fmt.Fprint( res, "Hello: " + name )
-	// } )
-
-	// mux.HandleFunc("/items", func( res http.ResponseWriter, req *http.Request ) {
-	//     json.NewEncoder(res).Encode(Items)
-	// })
 
 	// creates a new instance of a mux router
 	myRouter := mux.NewRouter().StrictSlash(true)
@@ -79,6 +70,7 @@ func createNodeServer(name string, port int) *http.Server {
 	myRouter.HandleFunc("/items/{id}", func(w http.ResponseWriter, req *http.Request) {
 		vars := mux.Vars(req)
 		key := vars["id"]
+		fmt.Println(key)
 
 		if port == 9001 {
 			for _, item := range Items1 {
@@ -133,10 +125,101 @@ func createNodeServer(name string, port int) *http.Server {
 	return &server
 }
 
+func createRingServer(name string, port int) *http.Server {
+
+	// creates a new instance of a mux router
+	myRouter := mux.NewRouter().StrictSlash(true)
+
+	// Homepage of Ring Server
+	myRouter.HandleFunc("/", func(res http.ResponseWriter, req *http.Request) {
+		fmt.Fprint(res, "Hello: "+name)
+	})
+	myRouter.HandleFunc("/items", func(res http.ResponseWriter, req *http.Request) {
+		json.NewEncoder(res).Encode(Items)
+	})
+
+	myRouter.HandleFunc("/addToCart/{id}", func(res http.ResponseWriter, req *http.Request) {
+		vars := mux.Vars(req)
+		key := vars["id"]
+		intKey, _ := strconv.Atoi(key)
+		var hashedNode int
+		hashedNode = (intKey % 3) + 1
+		var URL string
+		if hashedNode == 1 {
+			URL = "http://localhost:9001/addToCart"
+		} else if hashedNode == 2 {
+			URL = "http://localhost:9002/addToCart"
+		} else if hashedNode == 3 {
+			URL = "http://localhost:9003/addToCart"
+		}
+
+		reqBody, _ := ioutil.ReadAll(req.Body)
+		responseBody := bytes.NewBuffer(reqBody)
+		//Leverage Go's HTTP Post function to make request
+		resp, err := http.Post(URL, "application/json", responseBody)
+		//Handle Error
+		if err != nil {
+			log.Fatalf("An Error Occured %v", err)
+		}
+
+		defer resp.Body.Close()
+		//Read the response body
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		sb := string(body)
+		log.Printf(sb)
+	})
+
+	myRouter.HandleFunc("/getCart/{id}", func(res http.ResponseWriter, req *http.Request) {
+		vars := mux.Vars(req)
+		key := vars["id"]
+		intKey, _ := strconv.Atoi(key)
+		var hashedNode int
+		hashedNode = (intKey % 3) + 1
+		var URL string
+		if hashedNode == 1 {
+			URL = "http://localhost:9001/items"
+		} else if hashedNode == 2 {
+			URL = "http://localhost:9002/items"
+		} else if hashedNode == 3 {
+			URL = "http://localhost:9003/items"
+		}
+		resp, err := http.Get(URL)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		//We Read the response body on the line below.
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		var item []Item
+		json.Unmarshal(body, &item)
+		json.NewEncoder(res).Encode(item)
+	})
+
+	server := http.Server{
+		Addr:    fmt.Sprintf(":%v", port), // :{port}
+		Handler: myRouter,
+	}
+
+	// return new server (pointer)
+	return &server
+}
+
 func main() {
 	// Initialize ring server
 	nodeArray := []Node{}
-	ringServer := RingServer{nodeArray, 9000} // ring server is port 9000
+	rServer := createRingServer("Node "+strconv.Itoa(0), 9000)
+	ringServer := RingServer{nodeArray, rServer} // ring server is port 9000
+
+	Items = []Item{
+		{ID: "1", Name: "Comb", Desc: "Make your hair look neat with this", Price: "$1.00"},
+		{ID: "2", Name: "Pokka Green Tea", Desc: "Jasmine green tea", Price: "$2.00"},
+		{ID: "3", Name: "Teddy Bear", Desc: "Plushy toy", Price: "$10.00"},
+	}
 
 	Items1 = []Item{
 		{ID: "1", Name: "Comb", Desc: "Make your hair look neat with this", Price: "$1.00"},
@@ -161,8 +244,8 @@ func main() {
 	// add two goroutines to `wg` WaitGroup
 	wg.Add(NUM_NODES)
 
-	for i := 0; i < NUM_NODES; i++ {
-		port := 9001 + i
+	for i := 1; i <= NUM_NODES; i++ {
+		port := 9000 + i
 		server := createNodeServer("Node "+strconv.Itoa(i), port)
 		n := Node{i, server, port}
 		// Append node to ring server array
@@ -174,6 +257,7 @@ func main() {
 		fmt.Println("Server", n.id, "started on port", n.port, ". HTTP Server:", n.httpServer)
 		go n.httpServer.ListenAndServe()
 	}
+	go ringServer.httpServer.ListenAndServe()
 	// // goroutine to launch a server on port 9000
 	// go func() {
 	//     server := createServer( "Node 1", 9001 )
