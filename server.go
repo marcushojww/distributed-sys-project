@@ -18,6 +18,7 @@ type Item struct {
 	Name  string `json:"name"`
 	Price string `json:"price"`
 	Desc  string `json:"desc"`
+	Img string `json:"img"`
 }
 
 type User struct {
@@ -151,6 +152,10 @@ func createRingServer(name string, port int) *http.Server {
 
 	})
 	myRouter.HandleFunc("/items", func(res http.ResponseWriter, req *http.Request) {
+		// Enable CORS
+		res.Header().Set("Access-Control-Allow-Origin", "*")
+		res.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
 		json.NewEncoder(res).Encode(Items)
 	})
 
@@ -234,9 +239,10 @@ func main() {
 	ringServer := RingServer{nodeArray, rServer} // ring server is port 9000
 
 	Items = []Item{
-		{ID: "1", Name: "Comb", Desc: "Make your hair look neat with this", Price: "$1.00"},
-		{ID: "2", Name: "Pokka Green Tea", Desc: "Jasmine green tea", Price: "$2.00"},
-		{ID: "3", Name: "Teddy Bear", Desc: "Plushy toy", Price: "$10.00"},
+		{ID: "1", Name: "Comb", Desc: "Make your hair look neat with this", Price: "$1.00", Img: "https://m.media-amazon.com/images/I/71WmBY-nquL.jpg"},
+		{ID: "2", Name: "Pokka Green Tea", Desc: "Jasmine green tea", Price: "$2.00", Img: "https://coldstorage-s3.dexecure.net/product/056471_1528887337809.jpg"},
+		{ID: "3", Name: "Teddy Bear", Desc: "Plushy toy", Price: "$10.00", Img: "https://nationaltoday.com/wp-content/uploads/2021/08/Teddy-Bear-Day.jpg"},
+		{ID: "4", Name: "Soccer ball", Desc: "Play soccer like your favourite players!", Price: "$20.00", Img: "https://images.unsplash.com/photo-1614632537190-23e4146777db?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxleHBsb3JlLWZlZWR8M3x8fGVufDB8fHx8&w=1000&q=80"},
 	}
 
 	Cart1 = []Item{}
