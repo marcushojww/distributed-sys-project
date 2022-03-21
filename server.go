@@ -147,7 +147,8 @@ func createRingServer(name string, port int) *http.Server {
 
 	// Homepage of Ring Server
 	myRouter.HandleFunc("/", func(res http.ResponseWriter, req *http.Request) {
-		fmt.Fprint(res, "Hello: "+name)
+		fmt.Fprint(res, "Available commands: \nAdding items to certain user: /addToCart/id \nretrieving cart of certain user: /getCart/id \nRetrieve all items available: /items")
+
 	})
 	myRouter.HandleFunc("/items", func(res http.ResponseWriter, req *http.Request) {
 		json.NewEncoder(res).Encode(Items)
@@ -183,6 +184,8 @@ func createRingServer(name string, port int) *http.Server {
 		if err != nil {
 			log.Fatalln(err)
 		}
+		msg := "Cart added successful!"
+		json.NewEncoder(res).Encode(msg)
 		sb := string(body)
 		log.Printf(sb)
 	})
@@ -195,11 +198,11 @@ func createRingServer(name string, port int) *http.Server {
 		hashedNode = (intKey % 3) + 1
 		var URL string
 		if hashedNode == 1 {
-			URL = "http://localhost:9001/items"
+			URL = "http://localhost:9001/cart"
 		} else if hashedNode == 2 {
-			URL = "http://localhost:9002/items"
+			URL = "http://localhost:9002/cart"
 		} else if hashedNode == 3 {
-			URL = "http://localhost:9003/items"
+			URL = "http://localhost:9003/cart"
 		}
 		resp, err := http.Get(URL)
 		if err != nil {
@@ -260,8 +263,10 @@ func main() {
 		fmt.Println("Server", n.id, "started on port", n.port, ". HTTP Server:", n.httpServer)
 		go n.httpServer.ListenAndServe()
 	}
-
+	go ringServer.httpServer.ListenAndServe()
 	// wait until WaitGroup is done
 	wg.Wait()
 
 }
+
+// {"id":"2","name":"User2","price":"$1.00","desc":"Make your hair look neat with this"}
