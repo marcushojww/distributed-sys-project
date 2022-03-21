@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
 
 	"github.com/gorilla/mux"
@@ -17,8 +18,15 @@ type Item struct {
 
 type Node struct {
 	id int
-	httpServer http.Server
+	httpServer *http.Server
+	port int
 }
+
+type RingServer struct {
+	nodeArray []Node
+}
+
+const NUM_NODES = 3
 
 var Items []Item
 
@@ -57,7 +65,11 @@ func createServer( name string, port int ) *http.Server {
     return &server
 }
 
+
 func main() {
+	// Initialize ring server
+	nodeArray := []Node{}
+	ringServer := RingServer{nodeArray}
 
 	Items = []Item{
 		Item{Name: "Comb", Desc:"Make your hair look neat with this", Price:"$1.00"},
@@ -67,21 +79,47 @@ func main() {
     wg := new(sync.WaitGroup)
 
     // add two goroutines to `wg` WaitGroup
-    wg.Add(2)
+    wg.Add(NUM_NODES)
 
-    // goroutine to launch a server on port 9000
-    go func() {
-        server := createServer( "ONE", 9000 )
-        fmt.Println( server.ListenAndServe() )
-        wg.Done()
-    }()
+	for i := 0; i < NUM_NODES; i++ {
+		port := 9000 + i
+		server := createServer("Node " + strconv.Itoa(i), port)
+		n := Node{ i, server, port }
+		// Append node to ring server array
+		ringServer.nodeArray = append(ringServer.nodeArray, n)
+	}
+	fmt.Println("Completed ring server array:",ringServer.nodeArray)
+	// Activate gorouter to launch servers
+	for _, n := range ringServer.nodeArray {
+		fmt.Println("Server", n.id, "started on port", n.port,". HTTP Server:", n.httpServer)
+		go n.httpServer.ListenAndServe()
+	}
+    // // goroutine to launch a server on port 9000
+    // go func() {
+    //     server := createServer( "Node 1", 9001 )
+	// 	n := Node{ 1, server, 9001}
+	// 	fmt.Println("Server", n.id, " started on port ", n.port,". HTTP Server: ", n.httpServer)
+    //     fmt.Println( server.ListenAndServe() )
+    //     wg.Done()
+    // }()
 
-    // goroutine to launch a server on port 9001
-    go func() {
-        server := createServer( "TWO", 9001 )
-        fmt.Println( server.ListenAndServe() )
-        wg.Done()
-    }()
+    // // // goroutine to launch a server on port 9001
+    // go func() {
+    //     server := createServer( "Node 2", 9002 )
+	// 	n := Node{ 2, server, 9002}
+	// 	fmt.Println("Server", n.id, " started on port ", n.port,". HTTP Server: ", n.httpServer)
+    //     fmt.Println( server.ListenAndServe() )
+    //     wg.Done()
+    // }()
+
+	//  // // goroutine to launch a server on port 9002
+	//  go func() {
+    //     server := createServer( "Node 3", 9003 )
+	// 	n := Node{ 3, server, 9003}
+	// 	fmt.Println("Server", n.id, " started on port ", n.port,". HTTP Server: ", n.httpServer)
+    //     fmt.Println( server.ListenAndServe() )
+    //     wg.Done()
+    // }()
 
     // wait until WaitGroup is done
     wg.Wait()
