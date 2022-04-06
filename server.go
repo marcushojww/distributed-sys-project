@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -38,12 +40,18 @@ type RingServer struct {
 	httpServer *http.Server
 }
 
+type BackupRingServer struct {
+	nodeArray []Node
+	httpServer *http.Server
+}
+
 const NUM_NODES = 3
 
 var Items []Item
 var Cart1 []Item
 var Cart2 []Item
 var Cart3 []Item
+var isRingServerDown bool
 
 func createNodeServer(name string, port int) *http.Server {
 
@@ -145,7 +153,7 @@ func createRingServer(name string, port int) *http.Server {
 
 	// creates a new instance of a mux router
 	myRouter := mux.NewRouter().StrictSlash(true)
-
+	
 	// Homepage of Ring Server
 	myRouter.HandleFunc("/", func(res http.ResponseWriter, req *http.Request) {
 		fmt.Fprint(res, "Available commands: \nAdding items to certain user: /addToCart/id \nretrieving cart of certain user: /getCart/id \nRetrieve all items available: /items")
@@ -236,11 +244,47 @@ func createRingServer(name string, port int) *http.Server {
 	return &server
 }
 
+func pingRingServer(backupRingServer BackupRingServer, kill chan bool) {
+	for range time.Tick(time.Second * 2) {
+
+		fmt.Println("Is Ring Server Down:", isRingServerDown)
+
+		resp, err := http.Get("http://localhost:9000")
+
+		// If cannot reach primary ring server
+		if err != nil {
+			// If global var is not yet updated
+			if !isRingServerDown {
+				fmt.Println("Primary Ring Server down. Starting Backup Ring Server...")
+				backupHttpServer := createRingServer("Node "+strconv.Itoa(0), 9000)
+				backupRingServer.httpServer = backupHttpServer
+				fmt.Println("Backup Ring Server listening at port 9000")
+				go backupRingServer.httpServer.ListenAndServe()
+
+				// Update global var
+				isRingServerDown = true
+			}
+
+		}
+		fmt.Println("Server response at port 9000: ", resp)
+
+	}
+}
+
 func main() {
+	// Kill primary ring server channel
+	kill := make(chan bool)
+
 	// Initialize ring server
 	nodeArray := []Node{}
 	rServer := createRingServer("Node "+strconv.Itoa(0), 9000)
 	ringServer := RingServer{nodeArray, rServer} // ring server is port 9000
+
+	// Initialize back up ring server
+	// backupRServer := createRingServer("Node "+strconv.Itoa(0), 8999)
+	backupRingServer := BackupRingServer{}
+
+	
 
 	Items = []Item{
 		{ID: "1", Name: "Comb", Desc: "Make your hair look neat with this", Price: "$1.00", Img: "https://m.media-amazon.com/images/I/71WmBY-nquL.jpg"},
@@ -268,12 +312,41 @@ func main() {
 		ringServer.nodeArray = append(ringServer.nodeArray, n)
 	}
 	fmt.Println("Completed ring server array:", ringServer.nodeArray)
+
+	// Assign nodeArray to back up ring server
+	backupRingServer.nodeArray = ringServer.nodeArray
+	fmt.Println("Back up ring server array:", backupRingServer.nodeArray)
+
 	// Activate gorouter to launch servers
 	for _, n := range ringServer.nodeArray {
 		fmt.Println("Server", n.id, "started on port", n.port, ". HTTP Server:", n.httpServer)
 		go n.httpServer.ListenAndServe()
 	}
+
+	// go func() {
+	// 	for {
+	// 		select {
+	// 		case <- kill:
+	// 			fmt.Println("ENDING GO ROUTINE")
+	// 			return
+	// 		default:
+	// 			fmt.Println("PRIMARY RING SERVER IS NOW LISTENING...")
+	// 			ringServer.httpServer.ListenAndServe()
+	// 		}
+	// 	}
+	// }()
+	
 	go ringServer.httpServer.ListenAndServe()
+	go pingRingServer(backupRingServer, kill)
+
+
+	time.Sleep(5 * time.Second)
+	fmt.Println("Shutting down Primary Ring Server")
+	if err := ringServer.httpServer.Shutdown(context.TODO()); err != nil {
+		panic(err)
+	}
+
+
 	// wait until WaitGroup is done
 	wg.Wait()
 
