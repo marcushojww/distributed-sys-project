@@ -189,10 +189,14 @@ func createRingServer(name string, port int) *http.Server {
 		if err != nil {
 			log.Fatalln(err)
 		}
-		msg := "Cart added successful!"
-		json.NewEncoder(res).Encode(msg)
+		item := Item{}
+		error := json.Unmarshal(body, &item)
+		json.NewEncoder(res).Encode(item)
 		sb := string(body)
 		log.Printf(sb)
+		if error != nil {
+			log.Fatalln(error)
+		}
 	})
 
 	myRouter.HandleFunc("/getCart/{id}", func(res http.ResponseWriter, req *http.Request) {
