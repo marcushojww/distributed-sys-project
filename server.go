@@ -55,6 +55,7 @@ var Cart2 []Item
 var Cart3 []Item
 var Cart4 []Item
 var Cart5 []Item
+
 var isRingServerDown bool
 
 func createNodeServer(name string, port int) *http.Server {
@@ -202,35 +203,38 @@ func createRingServer(name string, port int) *http.Server {
 		
 		// var responseBody *bytes.Buffer
 		reqBody, _ := ioutil.ReadAll(req.Body)
-		responseBody := bytes.NewBuffer(reqBody)
+		// var responseBodyCopy *bytes.Buffer
 		// req.Body = ioutil.NopCloser(bytes.NewBuffer(reqBody))
-
-		replicatedResponse := responseBody
 		fmt.Println(req.Body)
 		var URL string
 
 		for i := 0; i < REPLICATION_FACTOR; i++ {
+<<<<<<< HEAD
 			// fmt.Println(responseBody)
 			// fmt.Println(replicatedResponse)
 		
+=======
+			responseBody := bytes.NewBuffer(reqBody)
+			fmt.Println(responseBody)
+>>>>>>> bb5e75c479efeefe6919c8bc707b85a30f110074
 			intHash = hashedNode + i
 			stringedHash := strconv.Itoa(intHash)
 			URL = "http://localhost:900" + stringedHash + "/addToCart"
 			fmt.Println(URL)
 
 			//Leverage Go's HTTP Post function to make request
-			resp, err := http.Post(URL, "application/json", replicatedResponse)
+			resp, err := http.Post(URL, "application/json", responseBody)
 			//Handle Error
 			if err != nil {
 				log.Fatalf("An Error Occured %v", err)
 			}
-
 			defer resp.Body.Close()
 			//Read the response body
-			body, err := ioutil.ReadAll(resp.Body)
+			reqBody, err = ioutil.ReadAll(resp.Body)
 			if err != nil {
 				log.Fatalln(err)
 			}
+<<<<<<< HEAD
 			item := Item{}
 			error := json.Unmarshal(body, &item)
 			json.NewEncoder(res).Encode(item)
@@ -239,6 +243,15 @@ func createRingServer(name string, port int) *http.Server {
 			}
 	
 
+=======
+		}
+		// 
+		item := Item{}
+		error := json.Unmarshal(reqBody, &item)
+		json.NewEncoder(res).Encode(item)
+		if error != nil {
+			log.Fatalln(error)
+>>>>>>> bb5e75c479efeefe6919c8bc707b85a30f110074
 		}
 		
 	})
