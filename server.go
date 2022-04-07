@@ -209,14 +209,8 @@ func createRingServer(name string, port int) *http.Server {
 		var URL string
 
 		for i := 0; i < REPLICATION_FACTOR; i++ {
-<<<<<<< HEAD
-			// fmt.Println(responseBody)
-			// fmt.Println(replicatedResponse)
-		
-=======
 			responseBody := bytes.NewBuffer(reqBody)
 			fmt.Println(responseBody)
->>>>>>> bb5e75c479efeefe6919c8bc707b85a30f110074
 			intHash = hashedNode + i
 			stringedHash := strconv.Itoa(intHash)
 			URL = "http://localhost:900" + stringedHash + "/addToCart"
@@ -234,16 +228,6 @@ func createRingServer(name string, port int) *http.Server {
 			if err != nil {
 				log.Fatalln(err)
 			}
-<<<<<<< HEAD
-			item := Item{}
-			error := json.Unmarshal(body, &item)
-			json.NewEncoder(res).Encode(item)
-			if error != nil {
-				log.Fatalln(error)
-			}
-	
-
-=======
 		}
 		// 
 		item := Item{}
@@ -251,7 +235,6 @@ func createRingServer(name string, port int) *http.Server {
 		json.NewEncoder(res).Encode(item)
 		if error != nil {
 			log.Fatalln(error)
->>>>>>> bb5e75c479efeefe6919c8bc707b85a30f110074
 		}
 		
 	})
