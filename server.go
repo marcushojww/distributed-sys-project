@@ -16,7 +16,8 @@ import (
 )
 
 type Item struct {
-	ID    string `json:"id"`
+	UID    string `json:"uid"`
+	IID    string `json:"iid"`
 	Name  string `json:"name"`
 	Price string `json:"price"`
 	Desc  string `json:"desc"`
@@ -84,56 +85,67 @@ func createNodeServer(name string, port int) *http.Server {
 		res.Header().Set("Access-Control-Allow-Origin", "*")
 		res.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
-		if port == 9001 {
+		if port == 9002 {
 			json.NewEncoder(res).Encode(Cart1)
-		} else if port == 9002 {
-			json.NewEncoder(res).Encode(Cart2)
 		} else if port == 9003 {
-			json.NewEncoder(res).Encode(Cart3)
+			json.NewEncoder(res).Encode(Cart2)
 		} else if port == 9004 {
-			json.NewEncoder(res).Encode(Cart4)
+			json.NewEncoder(res).Encode(Cart3)
 		} else if port == 9005 {
+			json.NewEncoder(res).Encode(Cart4)
+		} else if port == 9001 {
 			json.NewEncoder(res).Encode(Cart5)
 		}
 	})
 
 	// GET specific item
-	myRouter.HandleFunc("/items/{id}", func(w http.ResponseWriter, req *http.Request) {
+	myRouter.HandleFunc("/cart/{id}", func(w http.ResponseWriter, req *http.Request) {
+
 		vars := mux.Vars(req)
 		key := vars["id"]
-		fmt.Println(key)
-
-		if port == 9001 {
+		fmt.Println(key,port)
+		var items []Item
+		if port == 9002 {
+			fmt.Println(Cart1)
 			for _, item := range Cart1 {
-				if item.ID == key {
-					json.NewEncoder(w).Encode(item)
-				}
-			}
-		} else if port == 9002 {
-			for _, item := range Cart2 {
-				if item.ID == key {
-					json.NewEncoder(w).Encode(item)
+				if item.UID == key {
+					items = append(items,item)
 				}
 			}
 		} else if port == 9003 {
-			for _, item := range Cart3 {
-				if item.ID == key {
-					json.NewEncoder(w).Encode(item)
+			// fmt.Println(Cart2)
+			// fmt.Println("UID & key:",key)
+			for _, item := range Cart2 {
+				// fmt.Println("UID & key:",item.UID,key)
+				// fmt.Println(string(item.UID) == string(key))
+				if string(item.UID) == string(key) {
+					fmt.Println("in")
+					items = append(items,item)
 				}
 			}
 		} else if port == 9004 {
-			for _, item := range Cart4 {
-				if item.ID == key {
-					json.NewEncoder(w).Encode(item)
+			fmt.Println(Cart3)
+			for _, item := range Cart3 {
+				if item.UID == key {
+					items = append(items,item)
 				}
 			}
 		} else if port == 9005 {
+			fmt.Println(Cart4)
+			for _, item := range Cart4 {
+				if item.UID == key {
+					items = append(items,item)
+				}
+			}
+		} else if port == 9001 {
+			fmt.Println(Cart5)
 			for _, item := range Cart5 {
-				if item.ID == key {
-					json.NewEncoder(w).Encode(item)
+				if item.UID == key {
+					items = append(items,item)
 				}
 			}
 		}
+		json.NewEncoder(w).Encode(items)
 
 	})
 	
@@ -150,15 +162,15 @@ func createNodeServer(name string, port int) *http.Server {
 		json.Unmarshal(reqBody, &item)
 		// update our global Articles array to include
 		// our new Article
-		if port == 9001 {
+		if port == 9002 {
 			Cart1 = append(Cart1, item)
-		} else if port == 9002 {
-			Cart2 = append(Cart2, item)
 		} else if port == 9003 {
-			Cart3 = append(Cart3, item)
+			Cart2 = append(Cart2, item)
 		} else if port == 9004 {
-			Cart4 = append(Cart4, item)
+			Cart3 = append(Cart3, item)
 		} else if port == 9005 {
+			Cart4 = append(Cart4, item)
+		} else if port == 9001 {
 			Cart5 = append(Cart5, item)
 		}
 
@@ -194,12 +206,12 @@ func createRingServer(name string, port int) *http.Server {
 		json.NewEncoder(res).Encode(Items)
 	})
 
-	myRouter.HandleFunc("/addToCart/{uid}", func(res http.ResponseWriter, req *http.Request) {
+	myRouter.HandleFunc("/addToCart/{id}", func(res http.ResponseWriter, req *http.Request) {
 		vars := mux.Vars(req)
-		key := vars["uid"]
+		key := vars["id"]
 		intKey, _ := strconv.Atoi(key)
 		var hashedNode int
-		hashedNode = (intKey % 5) + 1
+		hashedNode = (intKey % 5) 
 		intHash := hashedNode
 		
 		// var responseBody *bytes.Buffer
@@ -212,7 +224,12 @@ func createRingServer(name string, port int) *http.Server {
 		for i := 0; i < REPLICATION_FACTOR; i++ {
 			responseBody := bytes.NewBuffer(reqBody)
 			fmt.Println(responseBody)
-			intHash = hashedNode + i
+			intHash += 1 
+			fmt.Println(intHash)
+			if intHash > 5{
+				intHash = 1
+			}
+			fmt.Println(intHash)
 			stringedHash := strconv.Itoa(intHash)
 			URL = "http://localhost:900" + stringedHash + "/addToCart"
 			fmt.Println(URL)
@@ -249,8 +266,9 @@ func createRingServer(name string, port int) *http.Server {
 		hashedNode = (intKey % 5) + 1
 		stringedHash := strconv.Itoa(hashedNode)
 		var URL string
-		URL = "http://localhost:900" + stringedHash + "/cart"
+		URL = "http://localhost:900" + stringedHash + "/cart/" + key
 		resp, err := http.Get(URL)
+		fmt.Println("resp:",resp)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -276,9 +294,10 @@ func createRingServer(name string, port int) *http.Server {
 func pingRingServer(backupRingServer BackupRingServer, kill chan bool) {
 	for range time.Tick(time.Second * 2) {
 
-		fmt.Println("Is Ring Server Down:", isRingServerDown)
+		// fmt.Println("Is Ring Server Down:", isRingServerDown)
 
-		resp, err := http.Get("http://localhost:9000")
+		_, err := http.Get("http://localhost:9000")
+		// resp, err := http.Get("http://localhost:9000")
 
 		// If cannot reach primary ring server
 		if err != nil {
@@ -295,7 +314,7 @@ func pingRingServer(backupRingServer BackupRingServer, kill chan bool) {
 			}
 
 		}
-		fmt.Println("Server response at port 9000: ", resp)
+		// fmt.Println("Server response at port 9000: ", resp)
 
 	}
 }
@@ -315,10 +334,10 @@ func main() {
 	backupRingServer := BackupRingServer{}
 
 	Items = []Item{
-		{ID: "1", Name: "Comb", Desc: "Make your hair look neat with this", Price: "$1.00", Img: "https://m.media-amazon.com/images/I/71WmBY-nquL.jpg"},
-		{ID: "2", Name: "Pokka Green Tea", Desc: "Jasmine green tea", Price: "$2.00", Img: "https://coldstorage-s3.dexecure.net/product/056471_1528887337809.jpg"},
-		{ID: "3", Name: "Teddy Bear", Desc: "Plushy toy", Price: "$10.00", Img: "https://nationaltoday.com/wp-content/uploads/2021/08/Teddy-Bear-Day.jpg"},
-		{ID: "4", Name: "Soccer ball", Desc: "Play soccer like your favourite players!", Price: "$20.00", Img: "https://images.unsplash.com/photo-1614632537190-23e4146777db?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxleHBsb3JlLWZlZWR8M3x8fGVufDB8fHx8&w=1000&q=80"},
+		{UID:"", IID: "1", Name: "Comb", Desc: "Make your hair look neat with this", Price: "$1.00", Img: "https://m.media-amazon.com/images/I/71WmBY-nquL.jpg"},
+		{UID:"", IID: "2", Name: "Pokka Green Tea", Desc: "Jasmine green tea", Price: "$2.00", Img: "https://coldstorage-s3.dexecure.net/product/056471_1528887337809.jpg"},
+		{UID:"", IID: "3", Name: "Teddy Bear", Desc: "Plushy toy", Price: "$10.00", Img: "https://nationaltoday.com/wp-content/uploads/2021/08/Teddy-Bear-Day.jpg"},
+		{UID:"", IID: "4", Name: "Soccer ball", Desc: "Play soccer like your favourite players!", Price: "$20.00", Img: "https://images.unsplash.com/photo-1614632537190-23e4146777db?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxleHBsb3JlLWZlZWR8M3x8fGVufDB8fHx8&w=1000&q=80"},
 	}
 
 	Cart1 = []Item{}
