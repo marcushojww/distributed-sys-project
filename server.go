@@ -203,40 +203,38 @@ func createRingServer(name string, port int) *http.Server {
 		
 		// var responseBody *bytes.Buffer
 		reqBody, _ := ioutil.ReadAll(req.Body)
-		responseBody := bytes.NewBuffer(reqBody)
+		// var responseBodyCopy *bytes.Buffer
 		// req.Body = ioutil.NopCloser(bytes.NewBuffer(reqBody))
-
-		replicatedResponse := responseBody
 		fmt.Println(req.Body)
 		var URL string
 
 		for i := 0; i < REPLICATION_FACTOR; i++ {
-			fmt.Println(replicatedResponse)
+			responseBody := bytes.NewBuffer(reqBody)
+			fmt.Println(responseBody)
 			intHash = hashedNode + i
 			stringedHash := strconv.Itoa(intHash)
 			URL = "http://localhost:900" + stringedHash + "/addToCart"
 			fmt.Println(URL)
 
 			//Leverage Go's HTTP Post function to make request
-			resp, err := http.Post(URL, "application/json", replicatedResponse)
+			resp, err := http.Post(URL, "application/json", responseBody)
 			//Handle Error
 			if err != nil {
 				log.Fatalf("An Error Occured %v", err)
 			}
-
 			defer resp.Body.Close()
 			//Read the response body
-			body, err := ioutil.ReadAll(resp.Body)
+			reqBody, err = ioutil.ReadAll(resp.Body)
 			if err != nil {
 				log.Fatalln(err)
 			}
-			item := Item{}
-			error := json.Unmarshal(body, &item)
-			json.NewEncoder(res).Encode(item)
-			if error != nil {
-				log.Fatalln(error)
-			}
-
+		}
+		// 
+		item := Item{}
+		error := json.Unmarshal(reqBody, &item)
+		json.NewEncoder(res).Encode(item)
+		if error != nil {
+			log.Fatalln(error)
 		}
 		
 	})
