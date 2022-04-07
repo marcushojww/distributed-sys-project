@@ -244,7 +244,7 @@ func createRingServer(name string, port int) *http.Server {
 	return &server
 }
 
-func pingRingServer(backupRingServer BackupRingServer, kill chan bool) {
+func pingRingServer(backupRingServer BackupRingServer) {
 	for range time.Tick(time.Second * 2) {
 
 		fmt.Println("Is Ring Server Down:", isRingServerDown)
@@ -272,8 +272,6 @@ func pingRingServer(backupRingServer BackupRingServer, kill chan bool) {
 }
 
 func main() {
-	// Kill primary ring server channel
-	kill := make(chan bool)
 
 	// Initialize ring server
 	nodeArray := []Node{}
@@ -337,7 +335,7 @@ func main() {
 	// }()
 	
 	go ringServer.httpServer.ListenAndServe()
-	go pingRingServer(backupRingServer, kill)
+	go pingRingServer(backupRingServer)
 
 
 	time.Sleep(5 * time.Second)
