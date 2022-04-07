@@ -31,6 +31,8 @@ type Node struct {
 	id         int
 	httpServer *http.Server
 	port       int
+	nodeArray  []Node
+	successors []Node
 }
 
 type RingServer struct {
@@ -38,12 +40,15 @@ type RingServer struct {
 	httpServer *http.Server
 }
 
-const NUM_NODES = 3
+const NUM_NODES = 5
+const REPLICATION_FACTOR = 3
 
 var Items []Item
 var Cart1 []Item
 var Cart2 []Item
 var Cart3 []Item
+var Cart4 []Item
+var Cart5 []Item
 
 func createNodeServer(name string, port int) *http.Server {
 
@@ -76,6 +81,10 @@ func createNodeServer(name string, port int) *http.Server {
 			json.NewEncoder(res).Encode(Cart2)
 		} else if port == 9003 {
 			json.NewEncoder(res).Encode(Cart3)
+		} else if port == 9004 {
+			json.NewEncoder(res).Encode(Cart4)
+		} else if port == 9005 {
+			json.NewEncoder(res).Encode(Cart5)
 		}
 	})
 
@@ -103,6 +112,18 @@ func createNodeServer(name string, port int) *http.Server {
 					json.NewEncoder(w).Encode(item)
 				}
 			}
+		} else if port == 9004 {
+			for _, item := range Cart4 {
+				if item.ID == key {
+					json.NewEncoder(w).Encode(item)
+				}
+			}
+		} else if port == 9005 {
+			for _, item := range Cart5 {
+				if item.ID == key {
+					json.NewEncoder(w).Encode(item)
+				}
+			}
 		}
 
 	})
@@ -126,6 +147,10 @@ func createNodeServer(name string, port int) *http.Server {
 			Cart2 = append(Cart2, item)
 		} else if port == 9003 {
 			Cart3 = append(Cart3, item)
+		} else if port == 9004 {
+			Cart4 = append(Cart4, item)
+		} else if port == 9005 {
+			Cart5 = append(Cart5, item)
 		}
 
 		json.NewEncoder(w).Encode(item)
@@ -159,60 +184,64 @@ func createRingServer(name string, port int) *http.Server {
 		json.NewEncoder(res).Encode(Items)
 	})
 
-	myRouter.HandleFunc("/addToCart/{id}", func(res http.ResponseWriter, req *http.Request) {
+	myRouter.HandleFunc("/addToCart/{uid}", func(res http.ResponseWriter, req *http.Request) {
 		vars := mux.Vars(req)
-		key := vars["id"]
+		key := vars["uid"]
 		intKey, _ := strconv.Atoi(key)
 		var hashedNode int
-		hashedNode = (intKey % 3) + 1
-		var URL string
-		if hashedNode == 1 {
-			URL = "http://localhost:9001/addToCart"
-		} else if hashedNode == 2 {
-			URL = "http://localhost:9002/addToCart"
-		} else if hashedNode == 3 {
-			URL = "http://localhost:9003/addToCart"
-		}
+		hashedNode = (intKey % 5) + 1
+		intHash := hashedNode
 
+		// var responseBody *bytes.Buffer
 		reqBody, _ := ioutil.ReadAll(req.Body)
 		responseBody := bytes.NewBuffer(reqBody)
-		//Leverage Go's HTTP Post function to make request
-		resp, err := http.Post(URL, "application/json", responseBody)
-		//Handle Error
-		if err != nil {
-			log.Fatalf("An Error Occured %v", err)
-		}
+		// req.Body = ioutil.NopCloser(bytes.NewBuffer(reqBody))
 
-		defer resp.Body.Close()
-		//Read the response body
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Fatalln(err)
+		replicatedResponse := responseBody
+		fmt.Println(req.Body)
+		var URL string
+
+		for i := 0; i < REPLICATION_FACTOR; i++ {
+			fmt.Println(replicatedResponse)
+			intHash = hashedNode + i
+			stringedHash := strconv.Itoa(intHash)
+			URL = "http://localhost:900" + stringedHash + "/addToCart"
+			fmt.Println(URL)
+
+			//Leverage Go's HTTP Post function to make request
+			resp, err := http.Post(URL, "application/json", replicatedResponse)
+			//Handle Error
+			if err != nil {
+				log.Fatalf("An Error Occured %v", err)
+			}
+
+			defer resp.Body.Close()
+			//Read the response body
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			item := Item{}
+			error := json.Unmarshal(body, &item)
+			json.NewEncoder(res).Encode(item)
+			if error != nil {
+				log.Fatalln(error)
+			}
+
 		}
-		item := Item{}
-		error := json.Unmarshal(body, &item)
-		json.NewEncoder(res).Encode(item)
-		sb := string(body)
-		log.Printf(sb)
-		if error != nil {
-			log.Fatalln(error)
-		}
+		
 	})
 
 	myRouter.HandleFunc("/getCart/{id}", func(res http.ResponseWriter, req *http.Request) {
+		fmt.Println(req)
 		vars := mux.Vars(req)
 		key := vars["id"]
 		intKey, _ := strconv.Atoi(key)
 		var hashedNode int
-		hashedNode = (intKey % 3) + 1
+		hashedNode = (intKey % 5) + 1
+		stringedHash := strconv.Itoa(hashedNode)
 		var URL string
-		if hashedNode == 1 {
-			URL = "http://localhost:9001/cart"
-		} else if hashedNode == 2 {
-			URL = "http://localhost:9002/cart"
-		} else if hashedNode == 3 {
-			URL = "http://localhost:9003/cart"
-		}
+		URL = "http://localhost:900" + stringedHash + "/cart"
 		resp, err := http.Get(URL)
 		if err != nil {
 			log.Fatalln(err)
@@ -239,6 +268,7 @@ func createRingServer(name string, port int) *http.Server {
 func main() {
 	// Initialize ring server
 	nodeArray := []Node{}
+	successors := []Node{}
 	rServer := createRingServer("Node "+strconv.Itoa(0), 9000)
 	ringServer := RingServer{nodeArray, rServer} // ring server is port 9000
 
@@ -254,22 +284,32 @@ func main() {
 	Cart2 = []Item{}
 
 	Cart3 = []Item{}
+
+	Cart4 = []Item{}
+
+	Cart5 = []Item{}
 	// create a WaitGroup
 	wg := new(sync.WaitGroup)
 
+	// var pointer1, pointer2, firstNode, secondNode Node
 	// add two goroutines to `wg` WaitGroup
 	wg.Add(NUM_NODES)
 
 	for i := 1; i <= NUM_NODES; i++ {
 		port := 9000 + i
 		server := createNodeServer("Node "+strconv.Itoa(i), port)
-		n := Node{i, server, port}
-		// Append node to ring server array
+
+		n := Node{i, server, port, nodeArray, successors}
 		ringServer.nodeArray = append(ringServer.nodeArray, n)
+		
 	}
+
 	fmt.Println("Completed ring server array:", ringServer.nodeArray)
 	// Activate gorouter to launch servers
+	fmt.Println(ringServer.nodeArray)
 	for _, n := range ringServer.nodeArray {
+
+		
 		fmt.Println("Server", n.id, "started on port", n.port, ". HTTP Server:", n.httpServer)
 		go n.httpServer.ListenAndServe()
 	}
