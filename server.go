@@ -240,6 +240,11 @@ func createRingServer(name string, port int) *http.Server {
 	})
 
 	myRouter.HandleFunc("/getCart/{id}", func(res http.ResponseWriter, req *http.Request) {
+
+		// Enable CORS
+		res.Header().Set("Access-Control-Allow-Origin", "*")
+		res.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		
 		fmt.Println(req)
 		vars := mux.Vars(req)
 		key := vars["id"]
@@ -369,9 +374,11 @@ func main() {
 	// }()
 	
 	go ringServer.httpServer.ListenAndServe()
+
+	// PERIODIC CHECKS BY BACK UP RING SERVER
 	// go pingRingServer(backupRingServer)
 
-
+	// SHUT DOWN PRIMARY SERVER
 	// time.Sleep(5 * time.Second)
 	// fmt.Println("Shutting down Primary Ring Server")
 	// if err := ringServer.httpServer.Shutdown(context.TODO()); err != nil {
