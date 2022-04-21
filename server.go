@@ -101,6 +101,11 @@ func createNodeServer(name string, port int) *http.Server {
 
 	// DELETE all user{id} items
 	myRouter.HandleFunc("/removeCart/{id}", func(w http.ResponseWriter, req *http.Request) {
+
+		// Enable CORS
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
 		// func deleteArticle(w http.ResponseWriter, r *http.Request) {vars := mux.Vars(req)
 		vars := mux.Vars(req)
 		key := vars["id"]
@@ -349,6 +354,7 @@ func createRingServer(name string, port int) *http.Server {
 	myRouter.HandleFunc("/removeCart/{id}", func(res http.ResponseWriter, req *http.Request) {
 		// Enable CORS
 		res.Header().Set("Access-Control-Allow-Origin", "*")
+		res.Header().Set("Access-Control-Allow-Methods", "DELETE");
 		res.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
 		client := &http.Client{}
