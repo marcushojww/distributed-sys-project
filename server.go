@@ -31,11 +31,12 @@ type User struct {
 }
 
 type Node struct {
-	id         int
-	httpServer *http.Server
-	port       int
-	nodeArray  []Node
-	successors []Node
+	id          int
+	httpServer  *http.Server
+	port        int
+	nodeArray   []Node
+	successors  []Node
+	vectorClock int
 }
 
 type RingServer struct {
@@ -342,10 +343,10 @@ func main() {
 	backupRingServer := BackupRingServer{}
 
 	Items = []Item{
-		{UID: "", IID: "1", Name: "Comb", Desc: "Make your hair look neat with this", Price: "$1.00", Img: "https://m.media-amazon.com/images/I/71WmBY-nquL.jpg"},
-		{UID: "", IID: "2", Name: "Pokka Green Tea", Desc: "Jasmine green tea", Price: "$2.00", Img: "https://coldstorage-s3.dexecure.net/product/056471_1528887337809.jpg"},
-		{UID: "", IID: "3", Name: "Teddy Bear", Desc: "Plushy toy", Price: "$10.00", Img: "https://nationaltoday.com/wp-content/uploads/2021/08/Teddy-Bear-Day.jpg"},
-		{UID: "", IID: "4", Name: "Soccer ball", Desc: "Play soccer like your favourite players!", Price: "$20.00", Img: "https://images.unsplash.com/photo-1614632537190-23e4146777db?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxleHBsb3JlLWZlZWR8M3x8fGVufDB8fHx8&w=1000&q=80"},
+		{UID: "1", IID: "1", Name: "Comb", Desc: "Make your hair look neat with this", Price: "$1.00", Img: "https://m.media-amazon.com/images/I/71WmBY-nquL.jpg"},
+		{UID: "2", IID: "2", Name: "Pokka Green Tea", Desc: "Jasmine green tea", Price: "$2.00", Img: "https://coldstorage-s3.dexecure.net/product/056471_1528887337809.jpg"},
+		{UID: "3", IID: "3", Name: "Teddy Bear", Desc: "Plushy toy", Price: "$10.00", Img: "https://nationaltoday.com/wp-content/uploads/2021/08/Teddy-Bear-Day.jpg"},
+		{UID: "4", IID: "4", Name: "Soccer ball", Desc: "Play soccer like your favourite players!", Price: "$20.00", Img: "https://images.unsplash.com/photo-1614632537190-23e4146777db?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxleHBsb3JlLWZlZWR8M3x8fGVufDB8fHx8&w=1000&q=80"},
 	}
 
 	Cart1 = []Item{}
@@ -368,7 +369,8 @@ func main() {
 		port := 9000 + i
 		server := createNodeServer("Node "+strconv.Itoa(i), port)
 
-		n := Node{i, server, port, nodeArray, successors}
+		vectorClock := 0
+		n := Node{i, server, port, nodeArray, successors, vectorClock}
 		ringServer.nodeArray = append(ringServer.nodeArray, n)
 
 	}
