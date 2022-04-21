@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -96,6 +97,86 @@ func createNodeServer(name string, port int) *http.Server {
 		} else if port == 9001 {
 			json.NewEncoder(res).Encode(Cart5)
 		}
+	})
+
+	// DELETE all user{id} items
+	myRouter.HandleFunc("/removeCart/{id}", func(w http.ResponseWriter, req *http.Request) {
+		// func deleteArticle(w http.ResponseWriter, r *http.Request) {vars := mux.Vars(req)
+		vars := mux.Vars(req)
+		key := vars["id"]
+		keyarr := strings.Split(key, "-")
+		uid := keyarr[0]
+		iid := keyarr[1]
+		itemDeleted := Item{}
+
+		// we then need to loop through all our articles
+		if port == 9001 {
+			for index, item := range Cart5 {
+				if string(item.UID) == string(uid) && string(item.IID) == string(iid) {
+					itemDeleted = Cart5[index]
+					if index < len(Cart5) {
+						Cart5 = append(Cart5[:index], Cart5[index+1:]...)
+					} else {
+						Cart5 = Cart5[:index]
+					}
+
+				}
+			}
+		}
+		if port == 9002 {
+			for index, item := range Cart1 {
+				if string(item.UID) == string(uid) && string(item.IID) == string(iid) {
+					itemDeleted = Cart1[index]
+					if index < len(Cart1) {
+						Cart1 = append(Cart1[:index], Cart1[index+1:]...)
+					} else {
+						Cart1 = Cart1[:index]
+					}
+
+				}
+			}
+		}
+		if port == 9003 {
+			for index, item := range Cart2 {
+				if string(item.UID) == string(uid) && string(item.IID) == string(iid) {
+					itemDeleted = Cart2[index]
+					if index < len(Cart2) {
+						Cart2 = append(Cart2[:index], Cart2[index+1:]...)
+					} else {
+						Cart2 = Cart2[:index]
+					}
+
+				}
+			}
+		}
+		if port == 9004 {
+			for index, item := range Cart3 {
+				if string(item.UID) == string(uid) && string(item.IID) == string(iid) {
+					itemDeleted = Cart3[index]
+					if index < len(Cart3) {
+						Cart3 = append(Cart3[:index], Cart3[index+1:]...)
+					} else {
+						Cart3 = Cart3[:index]
+					}
+
+				}
+			}
+		}
+		if port == 9005 {
+			for index, item := range Cart4 {
+				if string(item.UID) == string(uid) && string(item.IID) == string(iid) {
+					itemDeleted = Cart4[index]
+					if index < len(Cart4) {
+						Cart4 = append(Cart4[:index], Cart4[index+1:]...)
+					} else {
+						Cart4 = Cart4[:index]
+					}
+
+				}
+			}
+		}
+		json.NewEncoder(w).Encode(itemDeleted)
+
 	})
 
 	// GET specific item
@@ -260,6 +341,62 @@ func createRingServer(name string, port int) *http.Server {
 
 	})
 
+	myRouter.HandleFunc("/removeCart/{id}", func(res http.ResponseWriter, req *http.Request) {
+		// Enable CORS
+		res.Header().Set("Access-Control-Allow-Origin", "*")
+		res.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		client := &http.Client{}
+
+		vars := mux.Vars(req)
+		key := vars["id"]
+		keyarr := strings.Split(key, "-")
+		uid := keyarr[0]
+		intKey, _ := strconv.Atoi(uid)
+		var hashedNode int
+		hashedNode = (intKey % 5)
+		intHash := hashedNode
+
+		reqBody, _ := ioutil.ReadAll(req.Body)
+
+		var URL string
+
+		for i := 0; i < REPLICATION_FACTOR; i++ {
+			intHash += 1
+			if intHash > 5 {
+				intHash = 1
+			}
+			stringedHash := strconv.Itoa(intHash)
+			URL = "http://localhost:900" + stringedHash + "/removeCart/" + string(key)
+			fmt.Println(URL)
+
+			//Leverage Go's HTTP Post function to make request
+			req, err := http.NewRequest("DELETE", URL, nil)
+			//Handle Error
+			if err != nil {
+				fmt.Println("in err")
+				log.Fatalf("An Error Occured %v", err)
+			}
+			resp, err := client.Do(req)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			defer resp.Body.Close()
+			reqBody, err = ioutil.ReadAll(resp.Body)
+			if err != nil {
+				log.Fatalln(err)
+			}
+		}
+		//
+		item := Item{}
+		error := json.Unmarshal(reqBody, &item)
+		json.NewEncoder(res).Encode(item)
+		if error != nil {
+			log.Fatalln(error)
+		}
+	})
+
 	myRouter.HandleFunc("/getCart/{id}", func(res http.ResponseWriter, req *http.Request) {
 
 		// Enable CORS
@@ -348,7 +485,9 @@ func main() {
 		{UID: "", IID: "4", Name: "Soccer ball", Desc: "Play soccer like your favourite players!", Price: "$20.00", Img: "https://images.unsplash.com/photo-1614632537190-23e4146777db?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxleHBsb3JlLWZlZWR8M3x8fGVufDB8fHx8&w=1000&q=80"},
 	}
 
-	Cart1 = []Item{}
+	Cart1 = []Item{
+		{UID: "1", IID: "2", Name: "Comb", Desc: "Make your hair look neat with this", Price: "$1.00", Img: "https://m.media-amazon.com/images/I/71WmBY-nquL.jpg"},
+	}
 
 	Cart2 = []Item{}
 
@@ -415,4 +554,4 @@ func main() {
 
 }
 
-// {"id":"2","name":"User2","price":"$1.00","desc":"Make your hair look neat with this"}
+// {"UID":"4","IID": "1", "Name": "Comb2", "Desc": "Make your hair look neat with this", "Price": "$1.00", "Img": "https://m.media-amazon.com/images/I/71WmBY-nquL.jpg"}
