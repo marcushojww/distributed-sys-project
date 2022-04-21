@@ -18,7 +18,7 @@ type Item struct {
 	Name  string `json:"name"`
 	Price string `json:"price"`
 	Desc  string `json:"desc"`
-	Img string `json:"img"`
+	Img   string `json:"img"`
 }
 
 type User struct {
