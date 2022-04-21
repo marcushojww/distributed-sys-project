@@ -275,7 +275,7 @@ func createRingServer(name string, port int) *http.Server {
 
 	// Homepage of Ring Server
 	myRouter.HandleFunc("/", func(res http.ResponseWriter, req *http.Request) {
-		fmt.Fprint(res, "Available commands: \nAdding items to certain user: /addToCart/id \nretrieving cart of certain user: /getCart/id \nRetrieve all items available: /items")
+		fmt.Fprint(res, "Available commands: \nAdding items to certain user: /addToCart/id \nretrieving cart of certain user: /getCart/id \nRetrieve all items available: /items \nDelete item iid from user uid: /removeCart/<uid-iid>")
 
 	})
 	myRouter.HandleFunc("/items", func(res http.ResponseWriter, req *http.Request) {
@@ -485,9 +485,7 @@ func main() {
 		{UID: "", IID: "4", Name: "Soccer ball", Desc: "Play soccer like your favourite players!", Price: "$20.00", Img: "https://images.unsplash.com/photo-1614632537190-23e4146777db?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxleHBsb3JlLWZlZWR8M3x8fGVufDB8fHx8&w=1000&q=80"},
 	}
 
-	Cart1 = []Item{
-		{UID: "1", IID: "2", Name: "Comb", Desc: "Make your hair look neat with this", Price: "$1.00", Img: "https://m.media-amazon.com/images/I/71WmBY-nquL.jpg"},
-	}
+	Cart1 = []Item{}
 
 	Cart2 = []Item{}
 
