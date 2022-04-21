@@ -119,6 +119,7 @@ func createNodeServer(name string, port int) *http.Server {
 					} else {
 						Cart5 = Cart5[:index]
 					}
+					break
 
 				}
 			}
@@ -132,6 +133,7 @@ func createNodeServer(name string, port int) *http.Server {
 					} else {
 						Cart1 = Cart1[:index]
 					}
+					break
 
 				}
 			}
@@ -145,6 +147,7 @@ func createNodeServer(name string, port int) *http.Server {
 					} else {
 						Cart2 = Cart2[:index]
 					}
+					break
 
 				}
 			}
@@ -158,6 +161,7 @@ func createNodeServer(name string, port int) *http.Server {
 					} else {
 						Cart3 = Cart3[:index]
 					}
+					break
 
 				}
 			}
@@ -171,6 +175,7 @@ func createNodeServer(name string, port int) *http.Server {
 					} else {
 						Cart4 = Cart4[:index]
 					}
+					break
 
 				}
 			}
