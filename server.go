@@ -32,12 +32,11 @@ type User struct {
 }
 
 type Node struct {
-	id          int
-	httpServer  *http.Server
-	port        int
-	nodeArray   []Node
-	successors  []Node
-	vectorClock int
+	id         int
+	httpServer *http.Server
+	port       int
+	nodeArray  []Node
+	successors []Node
 }
 
 type RingServer struct {
@@ -59,6 +58,7 @@ var Cart2 []Item
 var Cart3 []Item
 var Cart4 []Item
 var Cart5 []Item
+var VectorClockList [5]int
 
 var isRingServerDown bool
 
@@ -120,6 +120,8 @@ func createNodeServer(name string, port int) *http.Server {
 					} else {
 						Cart5 = Cart5[:index]
 					}
+					VectorClockList[0] = VectorClockList[0] + 1
+
 					break
 
 				}
@@ -134,6 +136,8 @@ func createNodeServer(name string, port int) *http.Server {
 					} else {
 						Cart1 = Cart1[:index]
 					}
+					VectorClockList[1] = VectorClockList[1] + 1
+
 					break
 
 				}
@@ -148,6 +152,8 @@ func createNodeServer(name string, port int) *http.Server {
 					} else {
 						Cart2 = Cart2[:index]
 					}
+					VectorClockList[2] = VectorClockList[2] + 1
+
 					break
 
 				}
@@ -162,6 +168,7 @@ func createNodeServer(name string, port int) *http.Server {
 					} else {
 						Cart3 = Cart3[:index]
 					}
+					VectorClockList[3] = VectorClockList[3] + 1
 					break
 
 				}
@@ -176,6 +183,7 @@ func createNodeServer(name string, port int) *http.Server {
 					} else {
 						Cart4 = Cart4[:index]
 					}
+					VectorClockList[4] = VectorClockList[4] + 1
 					break
 
 				}
@@ -249,16 +257,22 @@ func createNodeServer(name string, port int) *http.Server {
 		json.Unmarshal(reqBody, &item)
 		// update our global Articles array to include
 		// our new Article
+		// update the vector clock number
 		if port == 9002 {
 			Cart1 = append(Cart1, item)
+			VectorClockList[1] = VectorClockList[1] + 1
 		} else if port == 9003 {
 			Cart2 = append(Cart2, item)
+			VectorClockList[2] = VectorClockList[2] + 1
 		} else if port == 9004 {
 			Cart3 = append(Cart3, item)
+			VectorClockList[3] = VectorClockList[3] + 1
 		} else if port == 9005 {
 			Cart4 = append(Cart4, item)
+			VectorClockList[4] = VectorClockList[4] + 1
 		} else if port == 9001 {
 			Cart5 = append(Cart5, item)
+			VectorClockList[0] = VectorClockList[0] + 1
 		}
 
 		json.NewEncoder(w).Encode(item)
@@ -433,6 +447,13 @@ func createRingServer(name string, port int) *http.Server {
 		json.NewEncoder(res).Encode(item)
 	})
 
+	myRouter.HandleFunc("/checkVectorClock", func(res http.ResponseWriter, req *http.Request) {
+		res.Header().Set("Access-Control-Allow-Origin", "*")
+		res.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		json.NewEncoder(res).Encode(VectorClockList)
+	})
+
 	server := http.Server{
 		Addr:    fmt.Sprintf(":%v", port), // :{port}
 		Handler: myRouter,
@@ -500,6 +521,7 @@ func main() {
 	Cart4 = []Item{}
 
 	Cart5 = []Item{}
+
 	// create a WaitGroup
 	wg := new(sync.WaitGroup)
 
@@ -511,8 +533,7 @@ func main() {
 		port := 9000 + i
 		server := createNodeServer("Node "+strconv.Itoa(i), port)
 
-		vectorClock := 0
-		n := Node{i, server, port, nodeArray, successors, vectorClock}
+		n := Node{i, server, port, nodeArray, successors}
 		ringServer.nodeArray = append(ringServer.nodeArray, n)
 
 	}
@@ -541,6 +562,10 @@ func main() {
 	// 		}
 	// 	}
 	// }()
+
+	for i := range VectorClockList {
+		VectorClockList[i] = 0
+	}
 
 	go ringServer.httpServer.ListenAndServe()
 
