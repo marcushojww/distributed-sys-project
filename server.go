@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -206,6 +207,10 @@ func createRingServer(name string, port int) *http.Server {
 	})
 
 	myRouter.HandleFunc("/addToCart/{id}", func(res http.ResponseWriter, req *http.Request) {
+		// Enable CORS
+		res.Header().Set("Access-Control-Allow-Origin", "*")
+		res.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
 		vars := mux.Vars(req)
 		key := vars["id"]
 		intKey, _ := strconv.Atoi(key)
@@ -298,16 +303,18 @@ func createRingServer(name string, port int) *http.Server {
 func pingRingServer(backupRingServer BackupRingServer) {
 	for range time.Tick(time.Second * 2) {
 
-		// fmt.Println("Is Ring Server Down:", isRingServerDown)
+		fmt.Println("Is Ring Server Down:", isRingServerDown)
 
-		_, err := http.Get("http://localhost:9000")
-		// resp, err := http.Get("http://localhost:9000")
+		// _, err := http.Get("http://localhost:9000")
+		resp, err := http.Get("http://localhost:9000")
 
 		// If cannot reach primary ring server
 		if err != nil {
 			// If global var is not yet updated
 			if !isRingServerDown {
+				fmt.Println("==========================================================")
 				fmt.Println("Primary Ring Server down. Starting Backup Ring Server...")
+				fmt.Println("==========================================================")
 				backupHttpServer := createRingServer("Node "+strconv.Itoa(0), 9000)
 				backupRingServer.httpServer = backupHttpServer
 				fmt.Println("Backup Ring Server listening at port 9000")
@@ -318,7 +325,7 @@ func pingRingServer(backupRingServer BackupRingServer) {
 			}
 
 		}
-		// fmt.Println("Server response at port 9000: ", resp)
+		fmt.Println("Server response at port 9000: ", resp)
 
 	}
 }
@@ -395,14 +402,14 @@ func main() {
 	go ringServer.httpServer.ListenAndServe()
 
 	// PERIODIC CHECKS BY BACK UP RING SERVER
-	// go pingRingServer(backupRingServer)
+	go pingRingServer(backupRingServer)
 
 	// SHUT DOWN PRIMARY SERVER
-	// time.Sleep(5 * time.Second)
-	// fmt.Println("Shutting down Primary Ring Server")
-	// if err := ringServer.httpServer.Shutdown(context.TODO()); err != nil {
-	// 	panic(err)
-	// }
+	time.Sleep(7 * time.Second)
+	fmt.Println("Shutting down Primary Ring Server")
+	if err := ringServer.httpServer.Shutdown(context.TODO()); err != nil {
+		panic(err)
+	}
 
 
 	// wait until WaitGroup is done
